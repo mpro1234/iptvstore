@@ -12,6 +12,8 @@ interface IProduct extends Document {
 export interface ICartProduct {
   productId: Types.ObjectId; // قبل الـ populate
   quantity: number;
+   priceUsed: number; // إضافة هذا الحقل
+
 }
 
 // واجهة السلة الرئيسية
