@@ -9,6 +9,8 @@ interface IProduct {
   _id: mongoose.Types.ObjectId;
   price: number;
   // أضف باقي الخصائص حسب الحاجة
+  isOnOffer: boolean; // إضافة حقل جديد لتحديد إذا كان العرض مفعل
+  discountedPrice?: number; // السعر بعد الخصم (اختياري)
 }
 interface ICartProduct {
   productId: IProduct | mongoose.Types.ObjectId;
@@ -54,6 +56,8 @@ export const createOrder = async (req: Request, res: Response) => {
       userId,
       products,
       totalPrice,
+      isOnOffer,
+  discountedPrice, 
       status: "completed",
     });
 
