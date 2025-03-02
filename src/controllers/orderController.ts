@@ -50,7 +50,7 @@ interface IMonthlyRevenueItem {
 // إنشاء طلب جديد
 export const createOrder = async (req: Request, res: Response) => {
   try {
-    const { userId, products, totalPrice } = req.body;
+    const { userId, products, totalPrice ,isOnOffer,discountedPrice} = req.body;
 
     const newOrder = new Order({
       userId,
