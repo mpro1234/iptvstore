@@ -94,6 +94,7 @@ export const addToCart = async (
     res.status(500).json({ message: "خطأ في الخادم" });
   }
 };
+// controllers/cartController.ts
 export const getCart = async (
   req: AuthRequest,
   res: Response,
@@ -107,17 +108,19 @@ export const getCart = async (
     }
 
     const cart = await Cart.findOne({ userId }).populate<{
-      products: PopulatedCartProduct[];
-    }>("products.productId", "name price image");
+      products: (CartProduct & { productId: PopulatedProduct })[]
+    }>("products.productId", "name price discountedPrice isOnOffer image");
 
-    const products =
-      cart?.products.map((p) => ({
-        productId: p.productId._id.toString(),
-        name: p.productId.name,
-        price: p.productId.price,
-        quantity: p.quantity, // لن يظهر الخطأ هنا الآن
-        image: p.productId.image,
-      })) || [];
+    const products = cart?.products.map((p) => ({
+      productId: p.productId._id.toString(),
+      name: p.productId.name,
+      originalPrice: p.productId.price,
+      price: p.priceUsed, // استخدام السعر المحفوظ
+      isOnOffer: p.productId.isOnOffer,
+      discountedPrice: p.productId.discountedPrice,
+      quantity: p.quantity,
+      image: p.productId.image,
+    })) || [];
 
     res.status(200).json({ products });
   } catch (error) {
@@ -126,7 +129,6 @@ export const getCart = async (
     res.status(500).json({ message: "خطأ في الخادم" });
   }
 };
-
 // controllers/cartController.ts
 export const getCartCount = async (
   req: AuthRequest,
@@ -185,8 +187,14 @@ export const updateCartItem = async (
       res.status(404).json({ message: "المنتج غير موجود في السلة" });
       return;
     }
-
+ const finalPrice = product.isOnOffer && product.discountedPrice 
+      ? product.discountedPrice 
+      : product.price;
+    
     cart.products[productIndex].quantity = quantity;
+       // تحديث السعر والكمية
+    cart.products[productIndex].quantity = quantity;
+    cart.products[productIndex].priceUsed = finalPrice;
     await cart.save();
 
     const updatedCart = await Cart.findOne({ userId }).populate<{
