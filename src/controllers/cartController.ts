@@ -1,39 +1,35 @@
 // controllers/cartController.ts
 import { NextFunction, Request, Response } from "express";
-import Cart, { ICart, PopulatedCartProduct } from "../models/Cart";
-import { IProduct } from "../models/Product"; // تأكد من استيراد واجهة المنتج
+import Product from "../models/Product";
 import { Types } from "mongoose";
+import Cart from "../models/Cart";
 
 interface AuthRequest extends Request {
   user?: {
     userId: string;
     role: "user" | "admin" | "super-admin";
-    iat: number;  
+    iat: number;
     exp: number;
   };
 }
 
-// تحديث واجهة المنتج لتشمل الحقول المطلوبة
+
+
+// تحديث واجهة عنصر السلة بعد populate
+interface CartProduct {
+  productId: PopulatedProduct;
+  quantity: number;
+  priceUsed: number; // إضافة هذا الحقل
+}
+
 interface PopulatedProduct extends Document {
   _id: Types.ObjectId;
   name: string;
   price: number;
+  discountedPrice?: number;
+  isOnOffer?: boolean;
   image: string;
 }
-
-// تحديث واجهة عنصر السلة بعد populate
-interface CartProduct {
-  productId: PopulatedProduct; // استخدام الواجهة المحدثة
-  quantity: number;
-}
-
-// واجهة للسلة بعد populate
-interface PopulatedCart extends Document {
-  userId: Types.ObjectId;
-  products: CartProduct[];
-}
-
-
 // controllers/cartController.ts
 export const addToCart = async (
   req: AuthRequest,
@@ -43,7 +39,7 @@ export const addToCart = async (
   try {
     const { productId, quantity } = req.body;
     const userId = req.user?.userId;
-    
+
     if (!userId) {
       res.status(401).json({ message: "غير مصرح" });
       return;
@@ -65,9 +61,10 @@ export const addToCart = async (
     }
 
     // تحديد السعر المستخدم
-    const finalPrice = product.isOnOffer && product.discountedPrice 
-      ? product.discountedPrice 
-      : product.price;
+    const finalPrice =
+      product.isOnOffer && product.discountedPrice
+        ? product.discountedPrice
+        : product.price;
 
     const existingProduct = cart.products.find(
       (p) => p.productId.toString() === productId
@@ -77,15 +74,15 @@ export const addToCart = async (
       existingProduct.quantity += quantity || 1;
       existingProduct.priceUsed = finalPrice; // تحديث السعر إذا تغير
     } else {
-      cart.products.push({ 
-        productId, 
+      cart.products.push({
+        productId,
         quantity: quantity || 1,
-        priceUsed: finalPrice // حفظ السعر المستخدم
+        priceUsed: finalPrice, // حفظ السعر المستخدم
       });
     }
 
     await cart.save();
-    
+
     const totalCount = cart.products.reduce((sum, p) => sum + p.quantity, 0);
     res.status(200).json({ success: true, totalCount });
   } catch (error) {
@@ -108,19 +105,20 @@ export const getCart = async (
     }
 
     const cart = await Cart.findOne({ userId }).populate<{
-      products: (CartProduct & { productId: PopulatedProduct })[]
+      products: (CartProduct & { productId: PopulatedProduct })[];
     }>("products.productId", "name price discountedPrice isOnOffer image");
 
-    const products = cart?.products.map((p) => ({
-      productId: p.productId._id.toString(),
-      name: p.productId.name,
-      originalPrice: p.productId.price,
-      price: p.priceUsed, // استخدام السعر المحفوظ
-      isOnOffer: p.productId.isOnOffer,
-      discountedPrice: p.productId.discountedPrice,
-      quantity: p.quantity,
-      image: p.productId.image,
-    })) || [];
+    const products =
+      cart?.products.map((p) => ({
+        productId: p.productId._id.toString(),
+        name: p.productId.name,
+        originalPrice: p.productId.price,
+        price: p.priceUsed, // استخدام السعر المحفوظ
+        isOnOffer: p.productId.isOnOffer,
+        discountedPrice: p.productId.discountedPrice,
+        quantity: p.quantity,
+        image: p.productId.image,
+      })) || [];
 
     res.status(200).json({ products });
   } catch (error) {
@@ -173,6 +171,18 @@ export const updateCartItem = async (
       return;
     }
 
+    // جلب بيانات المنتج أولاً
+    const product = await Product.findById(productId); // إضافة هذا السطر
+    if (!product) {
+      res.status(404).json({ message: "المنتج غير موجود" });
+      return;
+    }
+
+    const finalPrice =
+      product.isOnOffer && product.discountedPrice
+        ? product.discountedPrice
+        : product.price;
+
     const cart = await Cart.findOne({ userId });
     if (!cart) {
       res.status(404).json({ message: "السلة غير موجودة" });
@@ -187,26 +197,26 @@ export const updateCartItem = async (
       res.status(404).json({ message: "المنتج غير موجود في السلة" });
       return;
     }
- const finalPrice = product.isOnOffer && product.discountedPrice 
-      ? product.discountedPrice 
-      : product.price;
-    
-    cart.products[productIndex].quantity = quantity;
-       // تحديث السعر والكمية
+
+    // تحديث السعر والكمية
     cart.products[productIndex].quantity = quantity;
     cart.products[productIndex].priceUsed = finalPrice;
+
     await cart.save();
 
     const updatedCart = await Cart.findOne({ userId }).populate<{
-      products: PopulatedCartProduct[];
-    }>("products.productId", "name price image");
+      products: (CartProduct & { productId: PopulatedProduct })[];
+    }>("products.productId", "name price discountedPrice isOnOffer image");
 
     res.status(200).json({
       success: true,
       products: updatedCart?.products.map((p) => ({
         productId: p.productId._id.toString(),
         name: p.productId.name,
-        price: p.productId.price,
+        originalPrice: p.productId.price,
+        price: p.priceUsed,
+        isOnOffer: p.productId.isOnOffer,
+        discountedPrice: p.productId.discountedPrice,
         quantity: p.quantity,
         image: p.productId.image,
       })),
@@ -251,15 +261,18 @@ export const deleteCartItem = async (
     await cart.save();
 
     const updatedCart = await Cart.findOne({ userId }).populate<{
-      products: PopulatedCartProduct[];
-    }>("products.productId", "name price image");
+      products: (CartProduct & { productId: PopulatedProduct })[];
+    }>("products.productId", "name price discountedPrice isOnOffer image");
 
     res.status(200).json({
       success: true,
       products: updatedCart?.products.map((p) => ({
         productId: p.productId._id.toString(),
         name: p.productId.name,
-        price: p.productId.price,
+        originalPrice: p.productId.price,
+        price: p.priceUsed,
+        isOnOffer: p.productId.isOnOffer,
+        discountedPrice: p.productId.discountedPrice,
         quantity: p.quantity,
         image: p.productId.image,
       })),
