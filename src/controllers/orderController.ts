@@ -46,7 +46,9 @@ interface IMonthlyRevenueItem {
   _id: number;
   totalRevenue: number;
 }
-
+// إنشاء طلب جديد
+export const createOrder = async (req: Request, res: Response) => {
+  try {
 // إنشاء طلب جديد
  const { userId, products, totalPrice } = req.body;
 
