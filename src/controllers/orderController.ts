@@ -45,7 +45,7 @@ interface IMonthlyRevenueItem {
   totalRevenue: number;
 }
 // إنشاء طلب جديد
-export const createOrder = async (req: Request, res: Response) => {
+export const createOrder = async (req: Request, res: Response): Promise<void> => {
   try {
     // إنشاء طلب جديد
     const { userId } = req.body;
@@ -58,7 +58,8 @@ export const createOrder = async (req: Request, res: Response) => {
       }[];
     }>("products.productId");
     if (!cart) {
-      return res.status(404).json({ message: "السلة غير موجودة" });
+       res.status(404).json({ message: "السلة غير موجودة" });
+       return;
     }
 
     // إنشاء مصفوفة المنتجات مع التحقق من الأسعار
@@ -70,15 +71,15 @@ export const createOrder = async (req: Request, res: Response) => {
       discountedPrice: (cartItem.productId as IProduct).discountedPrice,
     }));
 
-const totalPrice = cart.products.reduce(
-  (sum, item) =>
-    sum +
-    ((item.productId as IProduct).discountedPrice
-      ? (item.productId as IProduct).discountedPrice!
-      : (item.productId as IProduct).price) *
-      item.quantity,
-  0
-);
+    const totalPrice = cart.products.reduce(
+      (sum, item) =>
+        sum +
+        ((item.productId as IProduct).discountedPrice
+          ? (item.productId as IProduct).discountedPrice!
+          : (item.productId as IProduct).price) *
+          item.quantity,
+      0
+    );
     const newOrder = new Order({
       userId,
       products: orderProducts,
