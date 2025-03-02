@@ -48,22 +48,38 @@ interface IMonthlyRevenueItem {
 }
 
 // إنشاء طلب جديد
-export const createOrder = async (req: Request, res: Response) => {
-  try {
-    const { userId, products, totalPrice ,isOnOffer,discountedPrice} = req.body;
+ const { userId, products, totalPrice } = req.body;
+
+    // تحميل بيانات السلة للتحقق من الأسعار
+    const cart = await Cart.findOne({ userId }).populate<{ 
+      products: { productId: IProduct }[]
+    }>('products.productId');
+
+    if (!cart) {
+      return res.status(404).json({ message: "السلة غير موجودة" });
+    }
+
+    // إنشاء مصفوفة المنتجات مع التحقق من الأسعار
+    const orderProducts = cart.products.map((cartItem) => {
+      const product = cartItem.productId as IProduct;
+      
+      return {
+        productId: product._id,
+        quantity: cartItem.quantity,
+        price: product.price,
+        isOnOffer: product.isOnOffer,
+        discountedPrice: product.discountedPrice,
+      };
+    });
 
     const newOrder = new Order({
       userId,
-      products,
+      products: orderProducts,
       totalPrice,
-      isOnOffer,
-  discountedPrice, 
       status: "completed",
     });
 
     await newOrder.save();
-
-    // حذف السلة بعد إنشاء الطلب
     await Cart.findOneAndDelete({ userId });
 
     res.status(201).json({
@@ -111,7 +127,7 @@ export const getOrderDetails = async (
 
     const order = await Order.findById(id)
       .populate("userId", "name email")
-      .populate("products.productId", "name price image");
+      .populate("products.productId", "name price image discountedPrice isOnOffer");
 
     if (!order) {
       res.status(404).json({ message: "الطلب غير موجود" });
@@ -140,6 +156,8 @@ export const getOrderDetails = async (
           name: item.productId.name,
           price: item.productId.price,
           image: item.productId.image,
+         isOnOffer: item.isOnOffer,
+        discountedPrice: item.discountedPrice,
         },
         quantity: item.quantity,
       })),
