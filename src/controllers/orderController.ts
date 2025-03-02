@@ -14,7 +14,8 @@ interface IProduct {
 }
 interface ICartProduct {
   productId: IProduct | mongoose.Types.ObjectId;
-  quantity: number;
+  quantity: number; // إضافة هذا الحقل
+  discountedPrice?: number; // إضافة الخاصية هنا
 }
 
 interface IOrderDetails {
@@ -22,14 +23,11 @@ interface IOrderDetails {
   userId: {
     name: string;
     email: string;
-  }
+  };
 }
-
-
 
 interface AuthRequest extends Request {
   user?: IDecodedToken; // تعريف user كخياري (قد يكون undefined)
-
 }
 // أنواع البيانات المخصصة
 interface IStatsResponse {
@@ -49,31 +47,38 @@ interface IMonthlyRevenueItem {
 // إنشاء طلب جديد
 export const createOrder = async (req: Request, res: Response) => {
   try {
-// إنشاء طلب جديد
- const { userId, products, totalPrice } = req.body;
+    // إنشاء طلب جديد
+    const { userId } = req.body;
 
     // تحميل بيانات السلة للتحقق من الأسعار
-    const cart = await Cart.findOne({ userId }).populate<{ 
-      products: { productId: IProduct }[]
-    }>('products.productId');
-
+    const cart = await Cart.findOne({ userId }).populate<{
+      products: {
+        productId: IProduct;
+        quantity: number; // إضافة quantity هنا
+      }[];
+    }>("products.productId");
     if (!cart) {
       return res.status(404).json({ message: "السلة غير موجودة" });
     }
 
     // إنشاء مصفوفة المنتجات مع التحقق من الأسعار
-    const orderProducts = cart.products.map((cartItem) => {
-      const product = cartItem.productId as IProduct;
-      
-      return {
-        productId: product._id,
-        quantity: cartItem.quantity,
-        price: product.price,
-        isOnOffer: product.isOnOffer,
-        discountedPrice: product.discountedPrice,
-      };
-    });
+    const orderProducts = cart.products.map((cartItem) => ({
+      productId: (cartItem.productId as IProduct)._id,
+      quantity: cartItem.quantity, // الوصول إلى quantity بشكل صحيح
+      price: (cartItem.productId as IProduct).price,
+      isOnOffer: (cartItem.productId as IProduct).isOnOffer,
+      discountedPrice: (cartItem.productId as IProduct).discountedPrice,
+    }));
 
+const totalPrice = cart.products.reduce(
+  (sum, item) =>
+    sum +
+    ((item.productId as IProduct).discountedPrice
+      ? (item.productId as IProduct).discountedPrice!
+      : (item.productId as IProduct).price) *
+      item.quantity,
+  0
+);
     const newOrder = new Order({
       userId,
       products: orderProducts,
@@ -129,7 +134,10 @@ export const getOrderDetails = async (
 
     const order = await Order.findById(id)
       .populate("userId", "name email")
-      .populate("products.productId", "name price image discountedPrice isOnOffer");
+      .populate(
+        "products.productId",
+        "name price image isOnOffer discountedPrice"
+      );
 
     if (!order) {
       res.status(404).json({ message: "الطلب غير موجود" });
@@ -158,8 +166,8 @@ export const getOrderDetails = async (
           name: item.productId.name,
           price: item.productId.price,
           image: item.productId.image,
-         isOnOffer: item.isOnOffer,
-        discountedPrice: item.discountedPrice,
+          isOnOffer: item.isOnOffer,
+          discountedPrice: item.discountedPrice,
         },
         quantity: item.quantity,
       })),
