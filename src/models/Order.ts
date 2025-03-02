@@ -37,13 +37,8 @@ const orderSchema = new Schema<IOrder>({
         type: Number,
         required: true,
       },
-      discountedPrice: {
-        type: Number,
-      },
-      isOnOffer: {
-        type: Boolean,
-        required: true,
-      },
+    isOnOffer: { type: Boolean, default: false }, // إزالة required
+    discountedPrice: { type: Number },
     },
   ],
   totalPrice: {
