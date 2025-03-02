@@ -1,41 +1,19 @@
 // models/Cart.ts
-import mongoose, { Document, Schema, model, Types } from "mongoose";
+import { Schema, model, Document } from "mongoose";
 
-// واجهة المنتج (يجب أن تكون موجودة في ملف منفصل)
-interface IProduct extends Document {
-  name: string;
-  price: number;
-  image: string;
-}
-
-// واجهة عنصر السلة
-export interface ICartProduct {
-  productId: Types.ObjectId; // قبل الـ populate
+interface CartProduct {
+  productId: Schema.Types.ObjectId;
   quantity: number;
-   priceUsed: number; // إضافة هذا الحقل
-
+  priceUsed: number; // إضافة هذا الحقل
 }
 
-// واجهة السلة الرئيسية
-export interface ICart extends Document {
-  userId: Types.ObjectId;
-  products: ICartProduct[];
+interface ICart extends Document {
+  userId: Schema.Types.ObjectId;
+  products: CartProduct[];
 }
-export interface PopulatedCartProduct {
-  productId: {
-    _id: Types.ObjectId;
-    name: string;
-    price: number;
-    image: string;
-  };
-  quantity: number;
-}
+
 const cartSchema = new Schema<ICart>({
-  userId: {
-    type: Schema.Types.ObjectId,
-    ref: "User",
-    required: true,
-  },
+  userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
   products: [
     {
       productId: {
@@ -45,7 +23,13 @@ const cartSchema = new Schema<ICart>({
       },
       quantity: {
         type: Number,
-        default: 1,
+        required: true,
+        min: 1,
+      },
+      priceUsed: {
+        // إضافة هذا الحقل
+        type: Number,
+        required: true,
       },
     },
   ],
