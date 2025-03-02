@@ -107,13 +107,17 @@ export const getAllOrders = async (
   res: Response
 ): Promise<void> => {
   try {
-    const orders = await Order.find().populate("products.productId");
+    const orders = await Order.find()
+      .populate("userId", "name") // إضافة populate لـ userId مع اسم المستخدم
+      .populate("products.productId");
+
     res.status(200).json({ orders });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 export const getOrderDetails = async (
   req: AuthRequest,
   res: Response
@@ -147,7 +151,7 @@ export const getOrderDetails = async (
 
     // السماح للمشرفين بالوصول إلى أي طلب
     if (user.role !== "admin" && user.role !== "super-admin") {
-      const orderUserId = order.userId._id.toString();
+      const orderUserId = order.userId.id.toString();
       if (orderUserId !== user.userId) {
         res.status(403).json({ message: "غير مصرح بالوصول لهذا الطلب" });
         return;
