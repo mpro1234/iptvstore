@@ -130,3 +130,116 @@ export const getCartCount = async (
     return;
   }
 };
+
+// controllers/cartController.ts
+export const updateCartItem = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { productId } = req.params;
+    const { quantity } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ message: "غير مصرح" });
+      return;
+    }
+
+    if (!quantity || quantity < 1) {
+      res.status(400).json({ message: "الكمية غير صالحة" });
+      return;
+    }
+
+    const cart = await Cart.findOne({ userId });
+    if (!cart) {
+      res.status(404).json({ message: "السلة غير موجودة" });
+      return;
+    }
+
+    const productIndex = cart.products.findIndex(
+      (p) => p.productId.toString() === productId
+    );
+
+    if (productIndex === -1) {
+      res.status(404).json({ message: "المنتج غير موجود في السلة" });
+      return;
+    }
+
+    cart.products[productIndex].quantity = quantity;
+    await cart.save();
+
+    const updatedCart = await Cart.findOne({ userId }).populate<{
+      products: PopulatedCartProduct[];
+    }>("products.productId", "name price image");
+
+    res.status(200).json({
+      success: true,
+      products: updatedCart?.products.map((p) => ({
+        productId: p.productId._id.toString(),
+        name: p.productId.name,
+        price: p.productId.price,
+        quantity: p.quantity,
+        image: p.productId.image,
+      })),
+    });
+  } catch (error) {
+    next(error);
+    console.error(error);
+    res.status(500).json({ message: "خطأ في الخادم" });
+  }
+};
+// controllers/cartController.ts
+export const deleteCartItem = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { productId } = req.params;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ message: "غير مصرح" });
+      return;
+    }
+
+    const cart = await Cart.findOne({ userId });
+    if (!cart) {
+      res.status(404).json({ message: "السلة غير موجودة" });
+      return;
+    }
+
+    const initialLength = cart.products.length;
+    cart.products = cart.products.filter(
+      (p) => p.productId.toString() !== productId
+    );
+
+    if (cart.products.length === initialLength) {
+      res.status(404).json({ message: "المنتج غير موجود في السلة" });
+      return;
+    }
+
+    await cart.save();
+
+    const updatedCart = await Cart.findOne({ userId }).populate<{
+      products: PopulatedCartProduct[];
+    }>("products.productId", "name price image");
+
+    res.status(200).json({
+      success: true,
+      products: updatedCart?.products.map((p) => ({
+        productId: p.productId._id.toString(),
+        name: p.productId.name,
+        price: p.productId.price,
+        quantity: p.quantity,
+        image: p.productId.image,
+      })),
+    });
+  } catch (error) {
+    next(error);
+    console.error(error);
+    res.status(500).json({ message: "خطأ في الخادم" });
+  }
+};
