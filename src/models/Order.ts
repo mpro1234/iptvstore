@@ -6,6 +6,9 @@ export interface IOrder extends Document {
   products: {
     productId: mongoose.Types.ObjectId;
     quantity: number;
+    price: number; // السعر الأساسي
+    discountedPrice?: number; // السعر بعد الخصم (اختياري)
+    isOnOffer: boolean; // إضافة حقل جديد لتحديد إذا كان العرض مفعل
   }[];
   totalPrice: number;
   status: string;
@@ -28,6 +31,17 @@ const orderSchema = new Schema<IOrder>({
       },
       quantity: {
         type: Number,
+        required: true,
+      },
+      price: {
+        type: Number,
+        required: true,
+      },
+      discountedPrice: {
+        type: Number,
+      },
+      isOnOffer: {
+        type: Boolean,
         required: true,
       },
     },
