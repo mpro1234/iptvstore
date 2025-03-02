@@ -43,10 +43,19 @@ export const addToCart = async (
   try {
     const { productId, quantity } = req.body;
     const userId = req.user?.userId;
+    
     if (!userId) {
       res.status(401).json({ message: "غير مصرح" });
       return;
     }
+
+    // جلب بيانات المنتج أولاً
+    const product = await Product.findById(productId);
+    if (!product) {
+      res.status(404).json({ message: "المنتج غير موجود" });
+      return;
+    }
+
     let cart = await Cart.findOne({ userId });
     if (!cart) {
       cart = new Cart({
@@ -54,25 +63,35 @@ export const addToCart = async (
         products: [],
       });
     }
+
+    // تحديد السعر المستخدم
+    const finalPrice = product.isOnOffer && product.discountedPrice 
+      ? product.discountedPrice 
+      : product.price;
+
     const existingProduct = cart.products.find(
       (p) => p.productId.toString() === productId
     );
+
     if (existingProduct) {
       existingProduct.quantity += quantity || 1;
+      existingProduct.priceUsed = finalPrice; // تحديث السعر إذا تغير
     } else {
-      cart.products.push({ productId, quantity: quantity || 1 });
+      cart.products.push({ 
+        productId, 
+        quantity: quantity || 1,
+        priceUsed: finalPrice // حفظ السعر المستخدم
+      });
     }
+
     await cart.save();
     
-    // حساب العدد الإجمالي للكميات
     const totalCount = cart.products.reduce((sum, p) => sum + p.quantity, 0);
     res.status(200).json({ success: true, totalCount });
-    return;
   } catch (error) {
     next(error);
     console.error(error);
     res.status(500).json({ message: "خطأ في الخادم" });
-    return;
   }
 };
 export const getCart = async (
