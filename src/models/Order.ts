@@ -2,11 +2,7 @@ import mongoose, { Schema, Document } from "mongoose";
 import { IUser } from "./User";
 
 export interface IOrder extends Document {
-  userId: {
-    id: string; // إضافة ID إذا لزم الأمر
-    name: string;
-    email: string;
-  };
+  userId:mongoose.Types.ObjectId;
   products: {
     productId: mongoose.Types.ObjectId;
     quantity: number;
@@ -21,22 +17,11 @@ export interface IOrder extends Document {
 }
 
 const orderSchema = new Schema<IOrder>({
-  userId: [
-    {
-      id: {
+  userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User", // مرجع لنوع User
         required: true,
       },
-      name: {
-        type: String,
-      },
-      email: {
-        type: String,
-      },
-    },
-  ],
-
   products: [
     {
       productId: {
