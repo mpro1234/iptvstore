@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import Server from "../models/Server";
 import mongoose from "mongoose";
+import { pick } from 'lodash';
 
 // إنشاء سيرفر جديد
 export const createServer = async (
