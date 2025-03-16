@@ -14,10 +14,11 @@ export const createServer = async (
 
     // 1. التحقق من وجود userId وصحته
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ 
+       res.status(400).json({ 
         success: false,
         message: "بيانات المستخدم غير صالحة" 
       });
+      return;
     }
 
     // 2. تحويل userId إلى ObjectId
