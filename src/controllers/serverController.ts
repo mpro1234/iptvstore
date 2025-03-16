@@ -10,15 +10,13 @@ export const createServer = async (
 ): Promise<void> => {
   try {
     const { name, description, image } = req.body;
+    const userId = req.user?.userId;
 
-    // التحقق من وجود المستخدم الذي أنشأ السيرفر
-    const userId = req.user?.userId; // افترض أن `req.user` يحتوي على بيانات المستخدم الحالي
-    if (!userId) {
-      res.status(400).json({ message: "المستخدم غير موجود." });
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      res.status(400).json({ message: "معرّف المستخدم غير صالح" });
       return;
     }
 
-    // إنشاء السيرفر
     const server = new Server({
       name,
       description,
@@ -28,52 +26,67 @@ export const createServer = async (
 
     await server.save();
 
-    res.status(201).json({ message: "تم إنشاء السيرفر بنجاح.", server });
+    res.status(201).json({
+      success: true,
+      message: "تم إنشاء السيرفر بنجاح",
+      data: server
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "حدث خطأ أثناء إنشاء السيرفر." });
+    console.error("خطأ في إنشاء السيرفر:", error);
+    res.status(500).json({
+      success: false,
+      message: "حدث خطأ أثناء إنشاء السيرفر"
+    });
   }
 };
 
-// تعديل سيرفر موجود
-// controllers/serverController.ts
+// تحديث السيرفر
 export const updateServer = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const { serverId } = req.params;
+    
+    if (!mongoose.Types.ObjectId.isValid(serverId)) {
+      res.status(400).json({ message: "معرّف السيرفر غير صالح" });
+      return;
+    }
+
     const allowedUpdates = ['name', 'description', 'image', 'displayType', 'columns'];
     const updates = pick(req.body, allowedUpdates);
 
-    const updatedServer = await Server.findByIdAndUpdate(serverId, updates, {
-      new: true,
-    });
-    // التحقق من صلاحية عدد الأعمدة
     if (updates.columns && ![2, 3, 4].includes(updates.columns)) {
       res.status(400).json({ message: "عدد الأعمدة المسموح به: 2، 3، أو 4" });
       return;
     }
 
-    const updatedServer = await Server.findByIdAndUpdate(serverId, updates, {
-      new: true,
-    }).populate("products");
+    const updatedServer = await Server.findByIdAndUpdate(
+      serverId,
+      updates,
+      { new: true, runValidators: true }
+    ).populate("products");
 
     if (!updatedServer) {
-      res.status(404).json({ message: "السيرفر غير موجود" });
+      res.status(404).json({ message: "لم يتم العثور على السيرفر" });
       return;
     }
 
     res.status(200).json({
+      success: true,
       message: "تم تحديث السيرفر بنجاح",
-      server: updatedServer,
+      data: updatedServer
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "خطأ في الخادم" });
+    console.error("خطأ في تحديث السيرفر:", error);
+    res.status(500).json({
+      success: false,
+      message: "فشل في تحديث السيرفر"
+    });
   }
 };
-// دالة جديدة لإضافة منتج للسيرفر
+
+// إضافة منتج للسيرفر
 export const addProductToServer = async (
   req: Request,
   res: Response
@@ -81,28 +94,39 @@ export const addProductToServer = async (
   try {
     const { serverId, productId } = req.params;
 
+    [serverId, productId].forEach(id => {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        res.status(400).json({ message: "المعرّف غير صالح" });
+        return;
+      }
+    });
+
     const server = await Server.findByIdAndUpdate(
       serverId,
       { $addToSet: { products: productId } },
       { new: true }
-    );
+    ).populate("products");
 
     if (!server) {
-      res.status(404).json({ message: "السيرفر غير موجود" });
+      res.status(404).json({ message: "لم يتم العثور على السيرفر" });
       return;
     }
 
     res.status(200).json({
-      message: "تمت إضافة المنتج للسيرفر",
-      server,
+      success: true,
+      message: "تمت إضافة المنتج بنجاح",
+      data: server
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "خطأ في الخادم" });
+    console.error("خطأ في إضافة المنتج:", error);
+    res.status(500).json({
+      success: false,
+      message: "فشل في إضافة المنتج"
+    });
   }
 };
 
-// حذف سيرفر
+// حذف السيرفر
 export const deleteServer = async (
   req: Request,
   res: Response
@@ -110,33 +134,60 @@ export const deleteServer = async (
   try {
     const { serverId } = req.params;
 
-    const deletedServer = await Server.findByIdAndDelete(serverId);
-    if (!deletedServer) {
-      res.status(404).json({ message: "Server not found" });
+    if (!mongoose.Types.ObjectId.isValid(serverId)) {
+      res.status(400).json({ message: "معرّف السيرفر غير صالح" });
       return;
     }
 
-    res.status(200).json({ message: "Server deleted successfully" });
+    const deletedServer = await Server.findByIdAndDelete(serverId);
+
+    if (!deletedServer) {
+      res.status(404).json({ message: "لم يتم العثور على السيرفر" });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "تم حذف السيرفر بنجاح"
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error" });
+    console.error("خطأ في حذف السيرفر:", error);
+    res.status(500).json({
+      success: false,
+      message: "فشل في حذف السيرفر"
+    });
   }
 };
 
-// عرض جميع السيرفرات
+// الحصول على جميع السيرفرات
 export const getAllServers = async (
   _req: Request,
   res: Response
 ): Promise<void> => {
   try {
-    const servers = await Server.find().populate("createdBy"); // جلب بيانات المستخدم الذي أنشأ السيرفر
-    res.status(200).json({ servers });
+    const servers = await Server.find()
+      .populate("createdBy", "username email")
+      .populate({
+        path: "products",
+        select: "name price image",
+        options: { limit: 10 }
+      });
+
+    res.status(200).json({
+      success: true,
+      count: servers.length,
+      data: servers
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "حدث خطأ أثناء جلب السيرفرات." });
+    console.error("خطأ في جلب السيرفرات:", error);
+    res.status(500).json({
+      success: false,
+      message: "فشل في جلب السيرفرات"
+    });
   }
 };
 
+// الحصول على سيرفر بواسطة ID
 export const getServerById = async (
   req: Request,
   res: Response
@@ -144,19 +195,17 @@ export const getServerById = async (
   try {
     const { serverId } = req.params;
 
-    // التحقق من صحة الـ ID
     if (!mongoose.Types.ObjectId.isValid(serverId)) {
       res.status(400).json({ message: "معرّف السيرفر غير صالح" });
       return;
     }
 
-    // البحث عن السيرفر مع تضمين بيانات المستخدم المنشئ
     const server = await Server.findById(serverId)
       .populate("createdBy", "username email")
       .populate({
         path: "products",
-        model: "Product",
-        select: "name price image",
+        select: "name price image description",
+        options: { limit: 20 }
       });
 
     if (!server) {
@@ -165,18 +214,14 @@ export const getServerById = async (
     }
 
     res.status(200).json({
-      message: "تم جلب بيانات السيرفر بنجاح",
-      server: {
-        _id: server._id,
-        name: server.name,
-        description: server.description,
-        image: server.image,
-        createdBy: server.createdBy,
-        createdAt: server.createdAt,
-      },
+      success: true,
+      data: server
     });
   } catch (error) {
     console.error("خطأ في جلب السيرفر:", error);
-    res.status(500).json({ message: "حدث خطأ أثناء جلب بيانات السيرفر" });
+    res.status(500).json({
+      success: false,
+      message: "فشل في جلب بيانات السيرفر"
+    });
   }
 };
