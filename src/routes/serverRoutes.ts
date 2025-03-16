@@ -5,8 +5,7 @@ import {
   updateServer,
   deleteServer,
   getAllServers,
-    getServerById,
-
+  addProductToServer,
 } from "../controllers/serverController";
 
 const router = express.Router();
@@ -23,6 +22,10 @@ router.delete("/delete/:serverId", authenticate("admin"), deleteServer);
 // عرض جميع السيرفرات (متاح للجميع)
 router.get("/all", getAllServers);
 
-router.get("/:serverId", getServerById);
+router.put(
+  "/:serverId/add-product/:productId",
+  authenticate("admin"),
+  addProductToServer
+);
 
 export default router;
