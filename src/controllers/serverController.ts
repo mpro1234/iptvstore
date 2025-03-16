@@ -12,16 +12,23 @@ export const createServer = async (
     const { name, description, image } = req.body;
     const userId = req.user?.userId;
 
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      res.status(400).json({ message: "معرّف المستخدم غير صالح" });
-      return;
+    // 1. التحقق من وجود userId وصحته
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: "بيانات المستخدم غير صالحة" 
+      });
     }
 
+    // 2. تحويل userId إلى ObjectId
+    const createdBy = new mongoose.Types.ObjectId(userId);
+
+    // 3. إنشاء السيرفر مع القيم الصحيحة
     const server = new Server({
       name,
       description,
       image,
-      createdBy: userId,
+      createdBy, // الآن نوعه ObjectId
     });
 
     await server.save();
