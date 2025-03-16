@@ -85,6 +85,17 @@ export const updateProduct = async (
     res.status(500).json({ message: "Server error" });
   }
 };
+// controllers/productController.ts
+export const getProductsByServer = async (req: Request, res: Response) => {
+  
+  try {
+    const { serverId } = req.params;
+    const products = await Product.find({ server: serverId });
+    res.status(200).json({ products });
+  } catch (error) {
+    res.status(500).json({ message: "خطأ في جلب المنتجات" });
+  }
+};
 
 // حذف منتج
 export const deleteProduct = async (
