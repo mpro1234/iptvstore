@@ -42,8 +42,12 @@ export const updateServer = async (
 ): Promise<void> => {
   try {
     const { serverId } = req.params;
-    const updates = req.body;
+    const allowedUpdates = ['name', 'description', 'image', 'displayType', 'columns'];
+    const updates = pick(req.body, allowedUpdates);
 
+    const updatedServer = await Server.findByIdAndUpdate(serverId, updates, {
+      new: true,
+    });
     // التحقق من صلاحية عدد الأعمدة
     if (updates.columns && ![2, 3, 4].includes(updates.columns)) {
       res.status(400).json({ message: "عدد الأعمدة المسموح به: 2، 3، أو 4" });
