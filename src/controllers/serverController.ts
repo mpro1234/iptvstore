@@ -61,13 +61,10 @@ export const updateServer = async (
       return;
     }
 
-    const allowedUpdates = ['name', 'description', 'image', 'displayType', 'columns'];
+    const allowedUpdates = ['name', 'description', 'image'];
     const updates = pick(req.body, allowedUpdates);
 
-    if (updates.columns && ![2, 3, 4].includes(updates.columns)) {
-      res.status(400).json({ message: "عدد الأعمدة المسموح به: 2، 3، أو 4" });
-      return;
-    }
+
 
     const updatedServer = await Server.findByIdAndUpdate(
       serverId,
