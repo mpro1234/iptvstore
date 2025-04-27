@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
 import bcrypt from "bcryptjs";
+import adRoutes from "./routes/adRoutes";
 
 // Middleware & Models
 import User from "./models/User";
@@ -127,6 +128,7 @@ app.use("/api/orders", orderRoutes);
 
 // File uploads or others
 app.use("/api/upload", uploadRoutes);
+app.use("/api/ads", adRoutes);
 
 // 404 fallback
 app.use((_req, res) => {
