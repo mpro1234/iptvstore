@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import Server, { IServer } from "../models/Server";
 import mongoose from "mongoose";
 import { pick } from 'lodash';
+import Product from "../models/Product";      // ← استورد نموذج المنتج
 
 // إنشاء سيرفر جديد
 export const createServer = async (
@@ -138,34 +139,39 @@ export const deleteServer = async (
 ): Promise<void> => {
   try {
     const { serverId } = req.params;
+
     if (!mongoose.Types.ObjectId.isValid(serverId)) {
        res
         .status(400)
         .json({ success: false, message: "معرّف السيرفر غير صالح" });
     }
 
-    // 1. جلب السيرفر مع حقل products
-const server = await Server.findById(serverId).select("products");
-    if (!server) {
-       res
-        .status(404)
-        .json({ success: false, message: "لم يتم العثور على السيرفر" });
-    }
-
-    // 2. منع الحذف إذا كان هناك منتجات مرتبطة
-if ((server as IServer).products.length > 0) { 
+    // 1. عدّ المنتجات الحقيقية المرتبطة بالسيرفر
+    const productCount = await Product.countDocuments({ server: serverId });
+    if (productCount > 0) {
        res.status(400).json({
         success: false,
         message: "لا يمكن حذف هذا السيرفر لأنه يحتوي على منتجات مرتبطة",
       });
     }
 
-    // 3. حذف السيرفر
-    await Server.findByIdAndDelete(serverId);
-    res.status(200).json({ success: true, message: "تم حذف السيرفر بنجاح" });
+    // 2. إذا لم يكن هناك منتجات، نفّذ الحذف
+    const deletedServer = await Server.findByIdAndDelete(serverId);
+    if (!deletedServer) {
+       res
+        .status(404)
+        .json({ success: false, message: "لم يتم العثور على السيرفر" });
+    }
+
+     res.status(200).json({
+      success: true,
+      message: "تم حذف السيرفر بنجاح",
+    });
   } catch (error) {
     console.error("خطأ في حذف السيرفر:", error);
-    res.status(500).json({ success: false, message: "فشل في حذف السيرفر" });
+     res
+      .status(500)
+      .json({ success: false, message: "فشل في حذف السيرفر" });
   }
 };
 
