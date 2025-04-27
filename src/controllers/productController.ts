@@ -17,6 +17,8 @@ export const createProduct = async (
       discountedPrice,
       image,
       createdAt,
+      isOnOffer,
+      offerExpiry    
     } = req.body;
 
     const user = await User.findById(req.user?.userId); // افترض أن `req.user` يحتوي على بيانات المستخدم الحالي
@@ -40,6 +42,8 @@ export const createProduct = async (
       comments: [],
       createdBy: user._id,
       createdAt,
+        isOnOffer,            
+      offerExpiry: isOnOffer ? new Date(offerExpiry) : null, 
     });
 
     await newProduct.save();
