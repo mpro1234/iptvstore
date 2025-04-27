@@ -1,131 +1,134 @@
-import express, { Request, Response } from "express";
+import express from "express";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
-import User from "./models/User";
 import bcrypt from "bcryptjs";
+
+// Middleware & Models
+import User from "./models/User";
+
+// Auth & Dashboard
 import authRoutes from "./routes/authRoutes";
 import adminRoutes from "./routes/adminRoutes";
-import blogRoutes from "./routes/blogRoutes";
-import serverRoutes from "./routes/serverRoutes";
-import commentRoutes from "./routes/commentRoutes";
-import productRoutes from "./routes/productRoutes";
-import orderRoutes from "./routes/orderRoutes";
-import userRoutes from "./routes/authRoutes";
-import ratingRoutes from "./routes/ratingRoutes";
 import dashboardRoutes from "./routes/dashboardRoutes";
+
+// Blog & Comments
+import blogRoutes from "./routes/blogRoutes";
+import blogCommentRoutes from "./routes/blogCommentRoutes";
+import adminBlogCommentRoutes from "./routes/adminBlogCommentRoutes";
+
+// Servers (Categories) & Products
+import serverRoutes from "./routes/serverRoutes";
+import productRoutes from "./routes/productRoutes";
+
+// Ratings
+import productRatingRoutes from "./routes/productRatingRoutes";
+import adminProductRatingRoutes from "./routes/adminProductRatingRoutes";
+
+// Cart & Abandoned
 import cartRoutes from "./routes/cartRoutes";
+
+// Orders & Reports
+import orderRoutes from "./routes/orderRoutes";
+
+// File Uploads (if any)
 import uploadRoutes from "./routes/uploadRoutes";
 
-// التهيئة الأولية
 dotenv.config();
 const app = express();
 
-// Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
-    origin:["http://localhost:5173" , "https://www.soofrah.com","https://soofrah.com"],// أو '*' للسماح للجميع
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
+    origin: [
+      "http://localhost:5173",
+      "https://www.soofrah.com",
+      "https://soofrah.com",
     ],
-    credentials: true, // إذا كنت تستخدم الكوكيز/التوكن
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
   })
 );
 
-// الاتصال بقاعدة البيانات
 const connectDB = async () => {
   try {
-    // تفعيل وضع التصحيح لرؤية كل خطوات الاتصال
     mongoose.set("debug", true);
-
-    // الاتصال مع إعدادات متقدمة
     await mongoose.connect(process.env.MONGODB_URI!, {
-      serverSelectionTimeoutMS: 60000, // 60 ثانية
+      serverSelectionTimeoutMS: 60000,
       socketTimeoutMS: 60000,
       connectTimeoutMS: 60000,
     });
+    console.log("🛢️ Connected to MongoDB");
 
-    console.log("🛢️  تم الاتصال مع قاعدة البيانات بنجاح");
-
-    // تأخير تنفيذ createSuperAdmin لضمان اكتمال الاتصال
-    setTimeout(async () => {
-      await createSuperAdmin();
-    }, 2000); // انتظر 2 ثانية إضافية
-  } catch (error) {
-    console.error("❌ فشل الاتصال مع قاعدة البيانات:", error);
+    // Create super-admin if not exists
+    await new Promise((r) => setTimeout(r, 2000));
+    await createSuperAdmin();
+  } catch (err) {
+    console.error("❌ DB connection failed:", err);
     process.exit(1);
   }
 };
-// تشغيل الخادم
-const startServer = () => {
-  const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => {
-    console.log(`🚀 الخادم يعمل على: http://localhost:${PORT}`);
-  });
-};
-
-// التسلسل الزمني للتشغيل
-(async () => {
-  await connectDB();
-  startServer();
-})();
 
 const createSuperAdmin = async () => {
   try {
-    const superAdminEmail = process.env.SUPER_ADMIN_EMAIL;
-    const superAdminPassword = process.env.SUPER_ADMIN_PASSWORD;
-
-    // تحقق من وجود المتغيرات البيئية
-    if (!superAdminEmail || !superAdminPassword) {
-      throw new Error(
-        "❌ SUPER_ADMIN_EMAIL أو SUPER_ADMIN_PASSWORD غير مُعرف في .env"
-      );
+    const email = process.env.SUPER_ADMIN_EMAIL!;
+    const pass = process.env.SUPER_ADMIN_PASSWORD!;
+    const existing = await User.findOne({ email });
+    if (!existing) {
+      const hash = await bcrypt.hash(pass, 10);
+      await User.create({ email, password: hash, role: "super-admin" });
+      console.log("✅ Super Admin created");
     }
-
-    // تأخير اختياري لضمان اكتمال الفهارس
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // ابحث عن المستخدم باستخدام await مع معالجة الأخطاء
-    const superAdmin = await User.findOne({ email: superAdminEmail }).catch(
-      (err) => {
-        console.error("❌ فشل في البحث عن المستخدم:", err);
-        throw err;
-      }
-    );
-
-    if (!superAdmin) {
-      const hashedPassword = await bcrypt.hash(superAdminPassword, 10);
-      await User.create({
-        email: superAdminEmail,
-        password: hashedPassword,
-        role: "super-admin",
-      });
-      console.log("✅ Super Admin created successfully");
-    }
-  } catch (error) {
-    console.error("❌ فشل في إنشاء Super Admin:", error);
-    process.exit(1);
+  } catch (err) {
+    console.error("❌ Failed to create Super Admin:", err);
   }
 };
 
-createSuperAdmin();
+(async () => {
+  await connectDB();
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+  });
+})();
 
-connectDB();
+// --- Mount all routes under /api ---
 
+// Authentication
 app.use("/api/auth", authRoutes);
-app.use("/api/admin", adminRoutes);
-app.use("/api/blogs", blogRoutes);
-app.use("/api/servers", serverRoutes);
-app.use("/api/comments", commentRoutes);
-app.use("/api/products", productRoutes);
-app.use("/api/orders", orderRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/cart", cartRoutes); // <-- تأكد من صحة المسار
-app.use("/api/comments", commentRoutes);
-app.use("/api/ratings", ratingRoutes);
-app.use("/api", uploadRoutes);
 
+// User profile & settings
+app.use("/api/users", authRoutes); // duplicate of auth, or change to userRoutes if separate
+
+// Admin dashboard actions
+app.use("/api/admin", adminRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+
+// Blog & comments
+app.use("/api/blogs", blogRoutes);
+app.use("/api/blogs", blogCommentRoutes); // public comment routes
+app.use("/api/admin/blog-comments", adminBlogCommentRoutes);
+
+// Servers (categories)
+app.use("/api/servers", serverRoutes);
+
+// Products & product-ratings
+app.use("/api/products", productRoutes);
+app.use("/api/ratings", productRatingRoutes);
+app.use("/api/admin/ratings", adminProductRatingRoutes);
+
+// Cart & abandoned-cart
+app.use("/api/cart", cartRoutes);
+
+// Orders & reports
+app.use("/api/orders", orderRoutes);
+
+// File uploads or others
+app.use("/api/upload", uploadRoutes);
+
+// 404 fallback
+app.use((_req, res) => {
+  res.status(404).json({ message: "Endpoint not found" });
+});
