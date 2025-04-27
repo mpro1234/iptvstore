@@ -153,6 +153,7 @@ export const deleteServer = async (
         success: false,
         message: "لا يمكن حذف هذا السيرفر لأنه يحتوي على منتجات مرتبطة",
       });
+      return;
     }
 
     // 2. إذا لم يكن هناك منتجات، نفّذ الحذف
