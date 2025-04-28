@@ -33,27 +33,29 @@ export const addRating = async (req: Request, res: Response): Promise<void> => {
 };
 
 // Public: fetch approved & visible ratings
-export const getProductRatings = async (
-  req: Request,
+export const listRatingsByStatus = async (
+  _req: Request,
   res: Response
 ): Promise<void> => {
   try {
-    const { productId } = req.params;
-    const ratings = await ProductRating.find({
-      productId,
-      status: "approved",
-      isVisible: true,
-    })
-      .populate("userId", "name avatarUrl")
-      .sort({ createdAt: -1 });
+    const [pending, approved, rejected] = await Promise.all([
+      ProductRating.find({ status: "pending" })
+        .populate("userId", "name")
+        .lean(),
+      ProductRating.find({ status: "approved" })
+        .populate("userId", "name")
+        .lean(),
+      ProductRating.find({ status: "rejected" })
+        .populate("userId", "name")
+        .lean(),
+    ]);
 
-    res.status(200).json({ ratings });
+    res.status(200).json({ pending, approved, rejected });
   } catch (error) {
-    console.error(error);
+    console.error("Error in listRatingsByStatus:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
-
 // User updates own rating
 export const updateRating = async (
   req: Request,
