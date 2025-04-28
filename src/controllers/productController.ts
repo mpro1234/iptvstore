@@ -3,6 +3,7 @@ import Product from "../models/Product";
 import Server from "../models/Server";
 import User from "../models/User";
 import mongoose from "mongoose";
+import ProductRating from "../models/ProductRating";
 // إنشاء منتج جديد
 export const createProduct = async (
   req: Request,
@@ -188,28 +189,45 @@ export const searchProducts = async (
   }
 };
 
-export const getProductById = async (req: Request, res: Response): Promise<void> => {
-  // <-- تغيير نوع الإرجاع إلى void
+export const getProductById = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { id } = req.params;
-
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400).json({ message: "معرّف غير صالح" });
-      return; // <-- إضافة return لتجنب تنفيذ الكود التالي
+      return;
     }
 
-    const product = await Product.findById(id)
-      .populate("server", "name image")
-      .populate("comments.userId", "name avatarUrl")
-      .populate("ratings.userId", "name");
-
+    // 1. جلب بيانات المنتج
+    const product = await Product.findById(id).lean();
     if (!product) {
       res.status(404).json({ message: "المنتج غير موجود" });
       return;
     }
 
-    // هنا نعيد المنتج مباشرةً بدون حقل data
-    res.status(200).json(product);
+    // 3. جلب التقييمات المعتمدة والمرئية
+    const ratings = await ProductRating.find({
+      productId: id,
+      status: "approved",
+      isVisible: true,
+    })
+      .populate("userId", "name")
+      .lean();
+
+    // 4. حساب متوسط التقييم
+    const avgRating =
+      ratings.length > 0
+        ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length
+        : 0;
+
+    res.status(200).json({
+      product,
+   
+      ratings,
+      avgRating,
+    });
   } catch (error) {
     console.error("خطأ في جلب المنتج:", error);
     res.status(500).json({ message: "خطأ في السيرفر" });
