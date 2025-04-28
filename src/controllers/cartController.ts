@@ -302,3 +302,35 @@ export const getAbandonedCarts = async (
     res.status(500).json({ message: "Server error" });
   }
 };
+
+export const getAllCartsInfo = async (
+  _req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    // جلب جميع السلات
+    const carts = await Cart.find().populate("userId", "name email").lean();
+
+    // بناء مصفوفة النتائج مع الإحصائيات
+    const result = carts.map((cart) => {
+      const itemCount = cart.products.reduce((sum, p) => sum + p.quantity, 0);
+      const totalValue = cart.products.reduce(
+        (sum, p) => sum + p.priceUsed * p.quantity,
+        0
+      );
+      return {
+        _id: cart._id,
+        user: cart.userId,
+        itemCount,
+        totalValue,
+        createdAt: cart.createdAt,
+        updatedAt: cart.updatedAt,
+      };
+    });
+
+    res.status(200).json({ count: result.length, carts: result });
+  } catch (error) {
+    console.error("Error in getAllCartsInfo:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
