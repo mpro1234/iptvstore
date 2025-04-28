@@ -4,6 +4,7 @@ import {
   addToCart,
   deleteCartItem,
   getAbandonedCarts,
+  getAllCartsInfo,
   getCart,
   getCartCount,
   updateCartItem,
@@ -18,5 +19,6 @@ router.get("/count", authenticate("user"), getCartCount);
 router.put("/:productId", authenticate("user"), updateCartItem); // إضافة route التحديث
 router.delete("/:productId", authenticate("user"), deleteCartItem); // إضافة route الحذف
 router.get("/abandoned", authenticate("admin"), getAbandonedCarts);
+router.get("/all-info", authenticate("admin"), getAllCartsInfo);
 
 export default router;
