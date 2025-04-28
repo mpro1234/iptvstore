@@ -188,10 +188,7 @@ export const searchProducts = async (
   }
 };
 
-export const getProductById = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const getProductById = async (req: Request, res: Response): Promise<void> => {
   // <-- تغيير نوع الإرجاع إلى void
   try {
     const { id } = req.params;
@@ -202,24 +199,23 @@ export const getProductById = async (
     }
 
     const product = await Product.findById(id)
-      .populate("comments.userId", "name")
-      .populate({
-        path: "ratings",
-        match: { isVisible: true },
-        populate: { path: "userId", select: "name" },
-      });
+      .populate("server", "name image")
+      .populate("comments.userId", "name avatarUrl")
+      .populate("ratings.userId", "name");
 
     if (!product) {
       res.status(404).json({ message: "المنتج غير موجود" });
-      return; // <-- إضافة return هنا أيضًا
+      return;
     }
 
+    // هنا نعيد المنتج مباشرةً بدون حقل data
     res.status(200).json(product);
   } catch (error) {
-    console.error(error);
+    console.error("خطأ في جلب المنتج:", error);
     res.status(500).json({ message: "خطأ في السيرفر" });
   }
 };
+
 export const getOfferedProducts = async (
   _req: Request,
   res: Response
