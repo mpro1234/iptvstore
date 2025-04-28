@@ -9,11 +9,18 @@ export const addRating = async (req: Request, res: Response): Promise<void> => {
     const { productId, rating, comment } = req.body;
 
     if (!userId) {
-      res.status(401).json({ message: "Unauthorized" });
+      res.status(401).json({ message: "غير مصرح" });
       return;
     }
 
-    const newRating = new ProductRating({ userId, productId, rating, comment });
+    const newRating = new ProductRating({
+      userId,
+      productId,
+      rating,
+      comment,
+      status: "pending", // إذا اعتمدنا نظام المراجعة
+      isVisible: false,
+    });
     await newRating.save();
 
     res
