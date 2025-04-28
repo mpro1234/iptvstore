@@ -17,8 +17,6 @@ export const createProduct = async (
       discountedPrice,
       image,
       createdAt,
-      isOnOffer,
-      offerExpiry    
     } = req.body;
 
     const user = await User.findById(req.user?.userId); // افترض أن `req.user` يحتوي على بيانات المستخدم الحالي
@@ -42,8 +40,6 @@ export const createProduct = async (
       comments: [],
       createdBy: user._id,
       createdAt,
-        isOnOffer,            
-      offerExpiry: isOnOffer ? new Date(offerExpiry) : null, 
     });
 
     await newProduct.save();
@@ -118,9 +114,9 @@ export const deleteProduct = async (
       res.status(404).json({ message: "Product not found" });
       return;
     }
-  await Server.findByIdAndUpdate(deletedProduct.server, {
-    $pull: { products: deletedProduct._id },
-  });
+    await Server.findByIdAndUpdate(deletedProduct.server, {
+      $pull: { products: deletedProduct._id },
+    });
 
     res.status(200).json({ message: "Product deleted successfully" });
   } catch (error) {
@@ -192,7 +188,6 @@ export const searchProducts = async (
   }
 };
 
-
 export const getProductById = async (
   req: Request,
   res: Response
@@ -206,7 +201,13 @@ export const getProductById = async (
       return; // <-- إضافة return لتجنب تنفيذ الكود التالي
     }
 
-    const product = await Product.findById(id);
+    const product = await Product.findById(id)
+      .populate("comments.userId", "name")
+      .populate({
+        path: "ratings",
+        match: { isVisible: true },
+        populate: { path: "userId", select: "name" },
+      });
 
     if (!product) {
       res.status(404).json({ message: "المنتج غير موجود" });
@@ -229,6 +230,5 @@ export const getOfferedProducts = async (
       offerExpiry: { $gt: new Date() },
     });
     res.status(200).json({ products });
-  } catch (error) {
-  }
+  } catch (error) {}
 };
