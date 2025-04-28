@@ -31,6 +31,26 @@ export const addRating = async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({ message: "Server error" });
   }
 };
+export const getProductRatings = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { productId } = req.params;
+    const ratings = await ProductRating.find({
+      productId,
+      status: "approved",
+      isVisible: true,
+    })
+      .populate("userId", "name avatarUrl")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({ ratings });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
 
 // Public: fetch approved & visible ratings
 export const listRatingsByStatus = async (
