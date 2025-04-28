@@ -7,6 +7,7 @@ import {
   rejectRating,
   toggleRatingVisibility,
 } from "../controllers/adminProductRatingController";
+import { listRatingsByStatus } from "../controllers/productRatingController";
 
 const router = express.Router();
 
@@ -19,5 +20,6 @@ router.patch(
   authenticate("admin"),
   toggleRatingVisibility
 );
+router.get("/all-status", authenticate("admin"), listRatingsByStatus);
 
 export default router;
