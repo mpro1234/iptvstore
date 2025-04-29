@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from "mongoose";
 import { IUser } from "./User";
 
 export interface IOrder extends Document {
-  userId:mongoose.Types.ObjectId;
+  userId: mongoose.Types.ObjectId;
   products: {
     productId: mongoose.Types.ObjectId;
     quantity: number;
@@ -12,16 +12,19 @@ export interface IOrder extends Document {
   }[];
   totalPrice: number;
   status: string;
+  coupon: mongoose.Types.ObjectId;
+  usedPoints?: number; // لو نظام النقاط مرتبط
+
   createdAt: Date;
   updatedAt: Date;
 }
 
 const orderSchema = new Schema<IOrder>({
   userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User", // مرجع لنوع User
-        required: true,
-      },
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User", // مرجع لنوع User
+    required: true,
+  },
   products: [
     {
       productId: {
@@ -54,6 +57,15 @@ const orderSchema = new Schema<IOrder>({
     type: String,
     enum: ["pending", "completed", "cancelled"],
     default: "completed",
+  },
+  coupon: {
+    type: Schema.Types.ObjectId,
+    ref: "Coupon",
+    required: false,
+  },
+  usedPoints: {
+    type: Number,
+    required: false,
   },
   createdAt: {
     type: Date,
