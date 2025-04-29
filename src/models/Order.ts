@@ -14,6 +14,8 @@ export interface IOrder extends Document {
   status: string;
   coupon: mongoose.Types.ObjectId;
   usedPoints?: number; // لو نظام النقاط مرتبط
+  discountAmount?: number; // قيمة الخصم المطبَّق
+  finalPrice?: number; // السعر بعد الخصم
 
   createdAt: Date;
   updatedAt: Date;
@@ -62,7 +64,10 @@ const orderSchema = new Schema<IOrder>({
     type: Schema.Types.ObjectId,
     ref: "Coupon",
     required: false,
+    default: null,
   },
+  discountAmount: { type: Number, default: 0 },
+  finalPrice: { type: Number, required: true },
   usedPoints: {
     type: Number,
     required: false,
