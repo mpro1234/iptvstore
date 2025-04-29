@@ -10,8 +10,8 @@ export interface ICoupon extends Document {
   usageLimit: number; // إجمالي مرات الاستخدام
   usagePerUser: number; // حد الاستخدام لكل مستخدم
   minimumOrderValue?: number; // شرط الحد الأدنى للطلب
-  allowedProducts?: mongoose.Types.ObjectId[]; // منتجات محددة
-  allowedCategories?: mongoose.Types.ObjectId[]; // فئات محددة
+  applicableProducts: mongoose.Types.ObjectId[];
+  applicableServices: mongoose.Types.ObjectId[]; // كان categories، صرنا services
   userGroups?: string[]; // مجموعات مستخدمين (مثلاً VIP)
   canBeCombined: boolean; // هل يُسمح بالدمج مع كوبونات/خصومات أخرى
   isActive: boolean; // تفعيل/إيقاف
@@ -27,8 +27,8 @@ const couponSchema = new Schema<ICoupon>({
   usageLimit: { type: Number, default: 0 },
   usagePerUser: { type: Number, default: 1 },
   minimumOrderValue: { type: Number },
-  allowedProducts: [{ type: Schema.Types.ObjectId, ref: "Product" }],
-  allowedCategories: [{ type: Schema.Types.ObjectId, ref: "Server" }],
+  applicableProducts: [{ type: Schema.Types.ObjectId, ref: "Product" }],
+  applicableServices: [{ type: Schema.Types.ObjectId, ref: "Service" }],
   userGroups: [{ type: String }],
   canBeCombined: { type: Boolean, default: false },
   isActive: { type: Boolean, default: true },
