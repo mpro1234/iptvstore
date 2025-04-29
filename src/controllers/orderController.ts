@@ -4,6 +4,7 @@ import Order from "../models/Order";
 import Cart from "../models/Cart";
 import { IUser } from "../models/User";
 import { IDecodedToken } from "../middlewares/authMiddleware";
+import Coupon from "../models/Coupon";
 
 interface IProduct {
   _id: mongoose.Types.ObjectId;
@@ -45,45 +46,63 @@ interface IMonthlyRevenueItem {
   totalRevenue: number;
 }
 // إنشاء طلب جديد
-export const createOrder = async (req: Request, res: Response): Promise<void> => {
+export const createOrder = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
-    // إنشاء طلب جديد
-    const { userId } = req.body;
+    const { userId, couponId } = req.body;
 
-    // تحميل بيانات السلة للتحقق من الأسعار
+    // جلب السلة وتأكد منها
     const cart = await Cart.findOne({ userId }).populate<{
-      products: {
-        productId: IProduct;
-        quantity: number; // إضافة quantity هنا
-      }[];
+      products: { productId: any; quantity: number }[];
     }>("products.productId");
     if (!cart) {
-       res.status(404).json({ message: "السلة غير موجودة" });
-       return;
+      res.status(404).json({ message: "السلة غير موجودة" });
+      return;
     }
 
-    // إنشاء مصفوفة المنتجات مع التحقق من الأسعار
-    const orderProducts = cart.products.map((cartItem) => ({
-      productId: (cartItem.productId as IProduct)._id,
-      quantity: cartItem.quantity, // الوصول إلى quantity بشكل صحيح
-      price: (cartItem.productId as IProduct).price,
-      isOnOffer: (cartItem.productId as IProduct).isOnOffer,
-      discountedPrice: (cartItem.productId as IProduct).discountedPrice,
+    // بناء مصفوفة المنتجات للطلب
+    const orderProducts = cart.products.map((ci) => ({
+      productId: ci.productId._id,
+      quantity: ci.quantity,
+      price: ci.productId.price,
+      isOnOffer: ci.productId.isOnOffer,
+      discountedPrice: ci.productId.discountedPrice,
     }));
 
-    const totalPrice = cart.products.reduce(
-      (sum, item) =>
-        sum +
-        ((item.productId as IProduct).discountedPrice
-          ? (item.productId as IProduct).discountedPrice!
-          : (item.productId as IProduct).price) *
-          item.quantity,
-      0
-    );
+    // حساب المجموع قبل الخصم
+    const subtotal = cart.products.reduce((sum, ci) => {
+      const price = ci.productId.discountedPrice ?? ci.productId.price;
+      return sum + price * ci.quantity;
+    }, 0);
+
+    // إذا وُجد couponId، احسب الخصم
+    let discountAmount = 0;
+    if (couponId) {
+      const coupon = await Coupon.findById(couponId);
+      if (coupon) {
+        if (coupon.discountType === "fixed") {
+          discountAmount = coupon.amount;
+        } else {
+          discountAmount = (subtotal * coupon.amount) / 100;
+        }
+        // قلّل حد الاستخدام
+        coupon.usageLimit--;
+        await coupon.save();
+      }
+    }
+
+    const finalPrice = subtotal - discountAmount;
+
+    // إنشاء الطلب
     const newOrder = new Order({
       userId,
       products: orderProducts,
-      totalPrice,
+      coupon: couponId || null,
+      discountAmount,
+      totalPrice: subtotal,
+      finalPrice,
       status: "completed",
     });
 
