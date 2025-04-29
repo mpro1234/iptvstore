@@ -12,6 +12,7 @@ import User from "./models/User";
 import authRoutes from "./routes/authRoutes";
 import adminRoutes from "./routes/adminRoutes";
 import dashboardRoutes from "./routes/dashboardRoutes";
+import couponRoutes from "./routes/couponRoutes";
 
 // Blog & Comments
 import blogRoutes from "./routes/blogRoutes";
@@ -125,6 +126,7 @@ app.use("/api/cart", cartRoutes);
 
 // Orders & reports
 app.use("/api/orders", orderRoutes);
+app.use("/api/coupons", couponRoutes);
 
 // File uploads or others
 app.use("/api/upload", uploadRoutes);
