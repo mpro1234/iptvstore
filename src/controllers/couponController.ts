@@ -76,5 +76,11 @@ export const applyCoupon = async (req: Request, res: Response) => {
   coupon.usageLimit--;
   await coupon.save();
 
-  res.json({ success: true, discount, newTotal: subtotal - discount });
+  res.json({
+    success: true,
+    discount,
+    newTotal: subtotal - discount,
+    couponId: coupon._id,
+  });
+  return;
 };
